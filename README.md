@@ -1,5 +1,44 @@
-Solution of eye_contact task using fine-tuned ResNet18 and dataset from https://www.kaggle.com/datasets/pratikyuvrajchougule/eye-contact
-This has 0.8 F1.5, 0.96 AUC.
-In screens there are results of metrics and testing model with validation sample
-<img width="1028" height="522" alt="image" src="https://github.com/user-attachments/assets/ac289f60-2818-49bb-a111-8770ca33cf74" />
-<img width="1008" height="701" alt="image" src="https://github.com/user-attachments/assets/985f84a1-9047-4d85-a01a-339f10d77c98" />
+Eye Contact Detection AI
+Решение задачи классификации зрительного контакта (Eye Contact) с использованием предобученной и дообученной нейросети ResNet18. Проект включает в себя интерактивное приложение на Streamlit для тестирования модели в реальном времени через веб-камеру.
+
+Характеристики модели
+Архитектура: ResNet18 (PyTorch).
+
+Датасет: Eye Contact Dataset (Kaggle).
+
+Метрики:
+
+F1.5 Score: 0.8.
+
+AUC: 0.96.
+
+Препроцессинг: Использование MediaPipe Face Landmarker для динамического выделения области интереса (ROI) вокруг глаз.
+
+Демонстрация
+На скриншотах ниже представлены результаты метрик и примеры работы модели на валидационной выборке:
+<img width="1028" height="522" alt="Метрики обучения" src="https://github.com/user-attachments/assets/ac289f60-2818-49bb-a111-8770ca33cf74" />
+<img width="1008" height="701" alt="Тестирование модели" src="https://github.com/user-attachments/assets/985f84a1-9047-4d85-a01a-339f10d77c98" />
+
+Установка
+Клонируйте репозиторий:
+
+Установите зависимости:
+Рекомендуется использовать виртуальное окружение.
+
+pip install -r requirements.txt
+Загрузите веса модели:
+Перейдите в раздел Releases этого репозитория и скачайте файл весов resnet18_stage2.pth. Поместите его в корневую папку проекта.
+
+Загрузите модель MediaPipe:
+Для работы детектора лиц скачайте файл face_landmarker.task (из документации MediaPipe или из ресурсов проекта) и также положите его в корень.
+
+Использование
+Для запуска интерактивного приложения выполните команду:
+
+streamlit run app.py
+Основные возможности приложения:
+Live Поток: Отображение видео с веб-камеры с предсказанием вероятности контакта в реальном времени.
+
+Усреднение (Ensemble across time): Кнопка «ЗАФИКСИРОВАТЬ» делает серию из 10 снимков и выводит среднюю вероятность для повышения стабильности результата.
+
+Настройка порога: Слайдер «Порог детекции» позволяет вручную откалибровать чувствительность модели под ваши условия освещения.
