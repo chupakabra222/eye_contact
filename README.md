@@ -14,15 +14,6 @@
     * **F1.5 Score:** `0.80`
     * **AUC:** `0.96`
 * **Препроцессинг:** Динамический кроп области глаз с помощью **MediaPipe Face Landmarker**.
-
-## 🖼 Скриншоты и результаты
-Ниже представлены графики обучения и примеры работы алгоритма на валидационной выборке:
-
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/ac289f60-2818-49bb-a111-8770ca33cf74" width="48%" />
-  <img src="https://github.com/user-attachments/assets/985f84a1-9047-4d85-a01a-339f10d77c98" width="48%" />
-</p>
-
 ---
 
 ## ⚙️ Установка
