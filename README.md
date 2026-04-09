@@ -43,7 +43,8 @@
 </p>
 
 <p align="center">
-  <img width="800" alt="val_batch0_labels" src="https://github.com/user-attachments/assets/221a32d5-e4b9-47b7-a5da-f4de6dbbc392" />
+  <img width="800" alt="val_batch0_labels" src="https://github.com/user-attachments/assets/ad63e7ce-86e1-4421-8255-463b30630994" />
+
   <br><em>Пример работы модели на валидационной выборке</em>
 </p>
 
