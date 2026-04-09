@@ -31,6 +31,10 @@
 <p align="center">
   <img width="45%" alt="BoxF1_curve" src="https://github.com/user-attachments/assets/d2da72b8-5049-439e-b252-aa7033f4da57" />
   <img width="45%" alt="confusion_matrix_normalized" src="https://github.com/user-attachments/assets/e76d0d2d-698c-45d4-9375-b15fed86dd46" />
+  <img width="2250" height="1500" alt="BoxPR_curve" src="https://github.com/user-attachments/assets/d027d69a-b873-4ae7-b1ed-2dd519563b55" />
+  <img width="2250" height="1500" alt="BoxP_curve" src="https://github.com/user-attachments/assets/f5a56989-d9b9-45c8-86f8-00474569b53a" />
+  <img width="2250" height="1500" alt="BoxR_curve" src="https://github.com/user-attachments/assets/acae1328-004b-4358-99a5-bea01a65e490" />
+
 </p>
 
 <p align="center">
