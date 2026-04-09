@@ -1,148 +1,117 @@
 import streamlit as st
 import cv2
-import torch
-import torch.nn as nn
 import numpy as np
-from PIL import Image
+from ultralytics import YOLO
 import mediapipe as mp
 from mediapipe.tasks import python
-from mediapipe.tasks.python.vision import FaceLandmarker, FaceLandmarkerOptions
-from torchvision import models
-import torchvision.transforms.v2 as v2
+from mediapipe.tasks.python import vision
+from mediapipe import Image as IMG
 import time
 
-# --- 1. ИНИЦИАЛИЗАЦИЯ МОДЕЛЕЙ ---
 @st.cache_resource
 def init_models():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = YOLO('best.pt') 
     base_options = python.BaseOptions(model_asset_path='face_landmarker.task')
-    options = FaceLandmarkerOptions(base_options=base_options, num_faces=1)
-    detector = FaceLandmarker.create_from_options(options)
-    
-    model = models.resnet18(weights=None)
-    model.fc = nn.Sequential(nn.Dropout(0.2), nn.Linear(512, 2))
-    model.load_state_dict(torch.load('resnet18_stage2.pth', map_location=device))
-    model.to(device).eval()
-    return detector, model, device
+    options = vision.FaceLandmarkerOptions(base_options=base_options, num_faces=1)
+    landmarker = vision.FaceLandmarker.create_from_options(options)
+    return landmarker, model
 
-detector, model, device = init_models()
+landmarker, yolo_model = init_models()
 
-val_transform = v2.Compose([
-    v2.Resize((224, 224)),
-    v2.ToImage(),
-    v2.ToDtype(torch.float32, scale=True),
-    v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
+if 'video_cap' not in st.session_state:
+    st.session_state.video_cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
-# --- 2. SESSION STATE ---
-if 'freeze_frame' not in st.session_state: st.session_state.freeze_frame = None
-if 'freeze_crop' not in st.session_state: st.session_state.freeze_crop = None
-if 'freeze_prob' not in st.session_state: st.session_state.freeze_prob = 0.0
+if 'freeze_data' not in st.session_state:
+    st.session_state.freeze_data = {"image": None, "conf": 0.0, "label": "None"}
 
-st.set_page_config(page_title="Eye Contact AI", layout="wide")
-st.title("👁 Eye Contact AI: Финальное исправление цветов")
+if 'needs_capture' not in st.session_state:
+    st.session_state.needs_capture = False
+
+st.set_page_config(page_title="YOLO Eye Monitor", layout="wide")
+st.title("👁 YOLO Eye Contact: Hard Cache Mode")
 
 col_left, col_right = st.columns([2, 1])
+
 with col_left:
-    st.subheader("Live Поток")
+    st.subheader("Live Поток (Зум)")
     FRAME_WINDOW = st.empty()
+
 with col_right:
-    st.subheader("Вход модели (Live)")
-    LIVE_CROP_WINDOW = st.empty()
-    btn_press = st.button("📸 ЗАФИКСИРОВАТЬ (Усреднить 10 кадров)")
-    PROGRESS_BAR = st.empty()
+    st.subheader("Управление")
+    conf_threshold = st.slider("Порог уверенности", 0.0, 1.0, 0.3, key="conf_slider")
+    
+    if st.button("📸 ЗАФИКСИРОВАТЬ КАДР", use_container_width=True):
+        st.session_state.needs_capture = True
     
     st.write("---")
+    st.subheader("Зафиксированный результат")
     FIXED_WINDOW = st.empty()
-    FIXED_CROP_WINDOW = st.empty()
     METRIC_WINDOW = st.empty()
-    threshold = st.slider("Порог детекции", 0.0, 1.0, 0.4387)
 
-# --- 3. ФУНКЦИЯ ОБРАБОТКИ (Работает только с RGB) ---
-def process_rgb(frame_rgb, threshold_val):
-    h, w, _ = frame_rgb.shape
-    mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
-    res = detector.detect(mp_img)
+def get_zoom_crop(image, target_size=(640, 640)):
+    h, w, _ = image.shape
+    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    mp_image = IMG(image_format=mp.ImageFormat.SRGB, data=rgb_image)
     
+    res = landmarker.detect(mp_image)
     if not res.face_landmarks:
-        return frame_rgb, None, 0.0
+        return None
     
     land = res.face_landmarks[0]
-    l_e = (np.array([land[33].x * w, land[33].y * h]) + np.array([land[133].x * w, land[133].y * h])) / 2
-    r_e = (np.array([land[362].x * w, land[362].y * h]) + np.array([land[263].x * w, land[263].y * h])) / 2
+    all_x = [l.x * w for l in land]
+    all_y = [l.y * h for l in land]
     
-    dist = np.linalg.norm(r_e - l_e)
-    side = int(dist * 1.8)
-    cx, cy = int((l_e[0] + r_e[0]) / 2), int((l_e[1] + r_e[1]) / 2)
-    x1, y1 = max(0, cx - side//2), max(0, cy - side//2)
-    x2, y2 = min(w, x1 + side), min(h, y1 + side)
+    xmin, xmax, ymin, ymax = min(all_x), max(all_x), min(all_y), max(all_y)
+    cx, cy = (xmin + xmax) / 2, (ymin + ymax) / 2
+    side = max(xmax - xmin, ymax - ymin) * 1.6
     
-    crop_rgb = frame_rgb[y1:y2, x1:x2].copy() # Важно сделать .copy()
-    if crop_rgb.size == 0: return frame_rgb, None, 0.0
+    x1, y1 = int(max(0, cx - side/2)), int(max(0, cy - side/2))
+    x2, y2 = int(min(w, cx + side/2)), int(min(h, cy + side/2))
     
-    tensor = val_transform(Image.fromarray(crop_rgb)).unsqueeze(0).to(device)
-    with torch.no_grad():
-        prob = torch.softmax(model(tensor), dim=1)[0,1].item()
-    
-    # Рисуем на копии кадра, чтобы не портить оригинал для кэша
-    draw_frame = frame_rgb.copy()
-    color = (0, 255, 0) if prob > threshold_val else (255, 0, 0) # RGB: Зеленый / Красный
-    cv2.putText(draw_frame, f"Prob: {prob:.4f}", (20, 50), 
-                cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 2)
-    
-    return draw_frame, crop_rgb, prob
+    crop = image[y1:y2, x1:x2]
+    if crop.size > 0:
+        return cv2.resize(crop, target_size)
+    return None
 
-# --- 4. ЦИКЛ ---
-cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+cap = st.session_state.video_cap
 
-try:
-    while True:
-        ret, frame_bgr = cap.read()
-        if not ret: break
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        continue
+
+    face_zoom = get_zoom_crop(frame)
+    
+    if face_zoom is not None:
+        results = yolo_model(face_zoom, conf=conf_threshold, augment=True, verbose=False)
+        display_frame = results[0].plot()
         
-        # 1. ЕДИНСТВЕННАЯ КОНВЕРТАЦИЯ В RGB
-        full_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        c_conf = 0.0
+        c_label = "None"
+        if len(results[0].boxes) > 0:
+            c_conf = results[0].boxes.conf[0].item()
+            c_label = yolo_model.names[int(results[0].boxes.cls[0].item())]
         
-        # 2. ОБРАБОТКА (рисуем текст на копии, возвращаем вероятности)
-        live_show, live_crop, live_prob = process_rgb(full_rgb, threshold)
-        
-        # 3. ЛОГИКА УСРЕДНЕНИЯ ПРИ НАЖАТИИ
-        if btn_press:
-            temp_probs = []
-            # Собираем пачку
-            for i in range(10):
-                r, fb = cap.read()
-                if r:
-                    fr = cv2.cvtColor(fb, cv2.COLOR_BGR2RGB)
-                    _, _, p = process_rgb(fr, threshold)
-                    temp_probs.append(p)
-                PROGRESS_BAR.progress((i + 1) * 10)
-            
-            if temp_probs:
-                # Сохраняем в кэш результаты ПОСЛЕДНЕГО кадра из пачки
-                # Мы сохраняем именно RGB вариант
-                st.session_state.freeze_frame = live_show.copy()
-                st.session_state.freeze_crop = live_crop.copy() if live_crop is not None else None
-                st.session_state.freeze_prob = sum(temp_probs) / len(temp_probs)
-            
-            PROGRESS_BAR.empty()
-            btn_press = False 
+        if st.session_state.needs_capture:
+            st.session_state.freeze_data["image"] = np.copy(display_frame)
+            st.session_state.freeze_data["conf"] = c_conf
+            st.session_state.freeze_data["label"] = c_label
+            st.session_state.needs_capture = False
+    else:
+        display_frame = frame.copy()
+        cv2.putText(display_frame, "FACE NOT FOUND", (50, 50), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
-        # 4. ВЫВОД (уже в RGB, конвертация не нужна)
-        FRAME_WINDOW.image(live_show)
-        if live_crop is not None:
-            LIVE_CROP_WINDOW.image(live_crop, width=200)
+    FRAME_WINDOW.image(cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB))
 
-        # ВЫВОД КЭША
-        if st.session_state.freeze_frame is not None:
-            FIXED_WINDOW.image(st.session_state.freeze_frame)
-            if st.session_state.freeze_crop is not None:
-                FIXED_CROP_WINDOW.image(st.session_state.freeze_crop, width=150)
-            
-            p_final = st.session_state.freeze_prob
-            res_txt = "CONTACT" if p_final > threshold else "NO CONTACT"
-            METRIC_WINDOW.metric(f"Результат усреднения: {res_txt}", f"{p_final:.4f}")
+    if st.session_state.freeze_data["image"] is not None:
+        FIXED_WINDOW.image(
+            cv2.cvtColor(st.session_state.freeze_data["image"], cv2.COLOR_BGR2RGB), 
+            width=400
+        )
+        METRIC_WINDOW.metric(
+            f"Зафиксировано: {st.session_state.freeze_data['label']}", 
+            f"{st.session_state.freeze_data['conf']:.4f}"
+        )
 
-        time.sleep(0.01)
-finally:
-    cap.release()
+    time.sleep(0.01)
