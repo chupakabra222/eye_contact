@@ -43,11 +43,6 @@
 </p>
 
 <p align="center">
-  <img width="90%" alt="val_batch0_labels" src="https://github.com/user-attachments/assets/221a32d5-e4b9-47b7-a5da-f4de6dbbc392" />
-  <br><em>Пример работы модели на валидационной выборке</em>
-</p>
-
-<p align="center">
   <img width="800" alt="val_batch0_labels" src="https://github.com/user-attachments/assets/221a32d5-e4b9-47b7-a5da-f4de6dbbc392" />
   <br><em>Пример работы модели на валидационной выборке</em>
 </p>
