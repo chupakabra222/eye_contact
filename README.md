@@ -13,8 +13,12 @@
 * **Метрики:**
     * **F1.5 Score:** `0.80`
     * **AUC:** `0.96`
-* **Препроцессинг:** Динамический кроп области глаз с помощью **MediaPipe Face Landmarker**.
+* **Препроцессинг:** Динамический зум области лица с помощью **MediaPipe Face Landmarker**.
 ---
+<img width="2400" height="1200" alt="results" src="https://github.com/user-attachments/assets/41d57d2f-0319-425e-9787-fdcdf8622a99" />
+<img width="2250" height="1500" alt="BoxF1_curve" src="https://github.com/user-attachments/assets/d2da72b8-5049-439e-b252-aa7033f4da57" />
+<img width="3000" height="2250" alt="confusion_matrix_normalized" src="https://github.com/user-attachments/assets/e76d0d2d-698c-45d4-9375-b15fed86dd46" />
+![val_batch0_labels](https://github.com/user-attachments/assets/221a32d5-e4b9-47b7-a5da-f4de6dbbc392)
 
 ## ⚙️ Установка
 
